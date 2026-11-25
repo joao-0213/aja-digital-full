@@ -1,0 +1,6 @@
+[submodule "backend"]
+	path = backend
+	url = https://github.com/joao-0213/aja-digital-backend.git
+[submodule "frontend"]
+	path = frontend
+	url = https://github.com/joao-0213/aja-digital-frontend.git
