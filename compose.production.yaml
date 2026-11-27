@@ -49,7 +49,14 @@ services:
 
   demo-seed:
     environment:
-      DEMO_SEED_ENABLED: "false"
+      DEMO_SEED_ENABLED: "true"
+      DEMO_ADMIN_PASSWORD_HASH: ${DEMO_ADMIN_PASSWORD_HASH:?Configure a senha de demonstração de administrador}
+      DEMO_TEACHER_PASSWORD_HASH: ${DEMO_TEACHER_PASSWORD_HASH:?Configure a senha de demonstração de professor}
+      DEMO_STUDENT_PASSWORD_HASH: ${DEMO_STUDENT_PASSWORD_HASH:?Configure a senha de demonstração de aluno}
+    volumes: !override
+      - ./backend/infra/postgres/demo:/opt/aja/demo-source:ro
+      - ./deploy/seed-production.sh:/opt/aja/seed-production.sh:ro
+    entrypoint: ["sh", "/opt/aja/seed-production.sh"]
 
   caddy:
     image: caddy:2.11-alpine

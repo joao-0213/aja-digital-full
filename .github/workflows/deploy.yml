@@ -19,12 +19,15 @@ jobs:
       - name: Validar configuração de produção
         run: |
           bash -n deploy/deploy.sh
+          sh -n deploy/seed-production.sh
           if bash deploy/deploy.sh 'invalid revision'; then exit 1; fi
           cp backend/env.integrated.example .env
-          EMAIL_PROVIDER_TOKEN=validation-only docker compose -f compose.yaml -f compose.production.yaml config --format json |
+          EMAIL_PROVIDER_TOKEN=validation-only DEMO_ADMIN_PASSWORD_HASH=validation-only \
+            DEMO_TEACHER_PASSWORD_HASH=validation-only DEMO_STUDENT_PASSWORD_HASH=validation-only \
+            docker compose -f compose.yaml -f compose.production.yaml config --format json |
             jq -e '
               ([.services | to_entries[] | select(.value.ports != null) | .key] == ["caddy"]) and
-              (.services["demo-seed"].environment.DEMO_SEED_ENABLED == "false") and
+              (.services["demo-seed"].environment.DEMO_SEED_ENABLED == "true") and
               (.services.core.environment.AJA_COOKIE_SECURE == "true")
             '
 

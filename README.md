@@ -63,6 +63,8 @@ No GitHub, configure os secrets `VPS_SSH_KEY` com a chave privada de deploy e `V
 
 Aponte o registro DNS `A` de `ajadigital.com.br` para o IPv4 da VPS e libere as portas TCP 80 e 443. O Caddy emite e renova o certificado. O workflow verifica o frontend e `/api/v1/health` por HTTPS após a publicação. PostgreSQL, RabbitMQ e os certificados usam volumes persistentes. [Documentação de HTTPS automático do Caddy](https://caddyserver.com/docs/automatic-https)
 
+O `demo-seed` carrega os dados e as contas de demonstração uma vez por banco. Configure três senhas de demonstração distintas e guarde apenas os hashes Argon2id em `DEMO_ADMIN_PASSWORD_HASH`, `DEMO_TEACHER_PASSWORD_HASH` e `DEMO_STUDENT_PASSWORD_HASH` no `.env`. Coloque cada hash entre aspas simples para preservar os caracteres `$`.
+
 ## Parar o ambiente
 
 Para parar os contêineres preservando o banco:
