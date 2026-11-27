@@ -1,0 +1,59 @@
+name: Produção
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - name: Validar configuração de produção
+        run: |
+          bash -n deploy/deploy.sh
+          if bash deploy/deploy.sh 'invalid revision'; then exit 1; fi
+          cp backend/env.integrated.example .env
+          EMAIL_PROVIDER_TOKEN=validation-only docker compose -f compose.yaml -f compose.production.yaml config --format json |
+            jq -e '
+              ([.services | to_entries[] | select(.value.ports != null) | .key] == ["caddy"]) and
+              (.services["demo-seed"].environment.DEMO_SEED_ENABLED == "false") and
+              (.services.core.environment.AJA_COOKIE_SECURE == "true")
+            '
+
+  deploy:
+    needs: validate
+    if: github.ref == 'refs/heads/main' && vars.VPS_HOST != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency:
+      group: aja-production
+      cancel-in-progress: false
+    steps:
+      - name: Publicar na VPS
+        env:
+          VPS_HOST: ${{ vars.VPS_HOST }}
+          VPS_PORT: ${{ vars.VPS_PORT || '22' }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          ssh_dir=$(mktemp -d)
+          trap 'rm -f "$ssh_dir/key" "$ssh_dir/known_hosts"; rmdir "$ssh_dir"' EXIT
+          printf '%s\n' "${VPS_SSH_KEY:?Configure VPS_SSH_KEY}" > "$ssh_dir/key"
+          printf '%s\n' "${VPS_KNOWN_HOSTS:?Configure VPS_KNOWN_HOSTS}" > "$ssh_dir/known_hosts"
+          ssh -i "$ssh_dir/key" -p "$VPS_PORT" -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes -o IdentitiesOnly=yes \
+            -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+            -l aja-deploy -- "$VPS_HOST" "$GITHUB_SHA"
+      - name: Verificar frontend e API públicos
+        run: |
+          curl --fail --silent --show-error --retry 15 --retry-all-errors --retry-delay 8 --max-time 15 https://ajadigital.com.br/ >/dev/null
+          curl --fail --silent --show-error --max-time 15 https://ajadigital.com.br/api/v1/health

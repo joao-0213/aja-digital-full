@@ -51,6 +51,18 @@ Restaure o Resend com:
 docker compose up --wait email
 ~~~
 
+## Produção em ajadigital.com.br
+
+Um push na `main` deste repositório publica na VPS os commits de frontend e backend registrados nos submódulos. Depois de um push em um submódulo, publique também a atualização da referência no Full.
+
+Na VPS Linux, use Docker Engine com o plugin Compose 2.24.4 ou superior. Clone este repositório em `/opt/aja-digital`, com acesso de escrita e ao Docker para o usuário `aja-deploy`. Instale `deploy/deploy.sh` em `/usr/local/bin/aja-deploy`, com permissões de execução e dono `root`. No `authorized_keys` de `aja-deploy`, adicione a chave pública dedicada com o prefixo `restrict,command="/usr/local/bin/aja-deploy"`.
+
+Crie `/opt/aja-digital/.env` com permissão `0600` para o usuário de deploy. Use os nomes de variáveis de `backend/env.integrated.example`, com senhas e tokens gerados para produção. Para `CORE_OUTBOX_ENCRYPTION_KEY`, use `openssl rand -base64 32`. Preserve essa chave e as senhas entre deploys. Configure `EMAIL_PROVIDER_TOKEN` com a chave do Resend e `EMAIL_PROVIDER_FROM` com o remetente verificado.
+
+No GitHub, configure os secrets `VPS_SSH_KEY` com a chave privada de deploy e `VPS_KNOWN_HOSTS` com a entrada SSH verificada da VPS. Defina a variável `VPS_HOST` com o endereço da VPS e, se necessário, `VPS_PORT` com a porta SSH. A variável `VPS_HOST` habilita a etapa de publicação.
+
+Aponte o registro DNS `A` de `ajadigital.com.br` para o IPv4 da VPS e libere as portas TCP 80 e 443. O Caddy emite e renova o certificado. O workflow verifica o frontend e `/api/v1/health` por HTTPS após a publicação. PostgreSQL, RabbitMQ e os certificados usam volumes persistentes. [Documentação de HTTPS automático do Caddy](https://caddyserver.com/docs/automatic-https)
+
 ## Parar o ambiente
 
 Para parar os contêineres preservando o banco:

@@ -1,0 +1,71 @@
+services:
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: https://ajadigital.com.br/api/v1
+    ports: !reset []
+    restart: unless-stopped
+
+  gateway:
+    ports: !reset []
+    restart: unless-stopped
+
+  core:
+    environment:
+      API_ALLOWED_ORIGINS: https://ajadigital.com.br
+      AJA_COOKIE_SECURE: "true"
+    restart: unless-stopped
+
+  questions:
+    environment:
+      API_ALLOWED_ORIGINS: https://ajadigital.com.br
+      CORE_PUBLIC_API_URL: https://ajadigital.com.br/api/v1
+    restart: unless-stopped
+
+  postgres:
+    restart: unless-stopped
+
+  rabbitmq:
+    hostname: rabbitmq
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  email:
+    environment:
+      EMAIL_PROVIDER_MODE: resend
+      EMAIL_PROVIDER_URL: https://api.resend.com/emails
+      EMAIL_PROVIDER_TOKEN: ${EMAIL_PROVIDER_TOKEN:?Configure a chave do Resend no .env}
+      EMAIL_PROVIDER_FROM: ${EMAIL_PROVIDER_FROM:?Configure o remetente do Resend no .env}
+      EMAIL_ACTION_BASE_URL: https://ajadigital.com.br
+    depends_on: !override
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    restart: unless-stopped
+
+  mailpit:
+    profiles: [mailpit]
+    ports: !reset []
+
+  demo-seed:
+    environment:
+      DEMO_SEED_ENABLED: "false"
+
+  caddy:
+    image: caddy:2.11-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/caddy:/etc/caddy:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      frontend: { condition: service_healthy }
+      gateway: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  rabbitmq-data:
+  caddy-data:
+  caddy-config:
